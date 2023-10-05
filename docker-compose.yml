@@ -1,0 +1,52 @@
+version: '3.7'
+
+volumes:
+  order-db-volume:
+
+networks:
+  messaging-network:
+    driver: bridge
+  order-service-network:
+
+services:
+  rabbitmq:
+    image: rabbitmq
+    container_name: rabbitmq
+    restart: always
+    networks:
+      - messaging-network
+
+  order-db:
+    image: postgres:15-alpine
+    container_name: order-db
+    hostname: order-postgres
+    restart: always
+    volumes:
+      - order-db-volume:/var/lib/postgresql/data/
+    expose:
+      - 5432
+    environment:
+      - POSTGRES_USER=order
+      - POSTGRES_PASSWORD=order
+      - POSTGRES_DB=order
+    networks:
+      - order-service-network
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - type: bind
+        source: ./order-service/
+        target: /app/
+    container_name: order-service
+    hostname: order-service
+    command: 'uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload'
+    ports:
+      - '8000:8000'
+    networks:
+      - messaging-network
+      - order-service-network
+
