@@ -2,11 +2,13 @@ version: '3.7'
 
 volumes:
   order-db-volume:
+  customer-db-volume:
 
 networks:
-  messaging-network:
+  gateway-network:
     driver: bridge
   order-service-network:
+  customer-service-network:
 
 services:
   rabbitmq:
@@ -14,7 +16,24 @@ services:
     container_name: rabbitmq
     restart: always
     networks:
-      - messaging-network
+      - gateway-network
+
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - type: bind
+        source: ./gateway-service/
+        target: /app/
+    container_name: gateway-service
+    hostname: gateway-service
+    command: 'uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload'
+    ports:
+      - '8000:8000'
+    networks:
+      - gateway-network
 
   order-db:
     image: postgres:15-alpine
@@ -43,10 +62,41 @@ services:
         target: /app/
     container_name: order-service
     hostname: order-service
-    command: 'uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload'
+    command: 'uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload'
     ports:
-      - '8000:8000'
+      - '8001:8001'
     networks:
-      - messaging-network
+      - gateway-network
       - order-service-network
 
+  customer-service:
+    build:
+      context: ./customer-service
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - ./customer-service/:/app/
+    container_name: customer-service
+    hostname: customer-service
+    command: 'uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload'
+    ports:
+      - '8002:8002'
+    networks:
+      - gateway-network
+      - customer-service-network
+
+  customer-db:
+    image: postgres:15-alpine
+    container_name: customer-db
+    hostname: customer-postgres
+    restart: always
+    volumes:
+      - customer-db-volume:/var/lib/postgresql/data/
+    expose:
+      - 5434
+    environment:
+      - POSTGRES_USER=customer
+      - POSTGRES_PASSWORD=customer
+      - POSTGRES_DB=customer
+    networks:
+      - customer-service-network
