@@ -1,0 +1,3 @@
+fastapi
+uvicorn[standard]
+fastapi-gateway @ git+https://github.com/aightmunam/fastapi-gateway
