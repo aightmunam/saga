@@ -26,3 +26,8 @@ async def get_order(order_id: uuid.UUID):
 @app.get('/orders/', response_model=OrderPydanticList)
 async def get_orders():
     return await OrderPydanticList.from_queryset(Order.all())
+
+
+@app.get('/users/{user_id}/orders/', response_model=OrderPydanticList)
+async def get_user_orders(user_id: uuid.UUID):
+    return await OrderPydanticList.from_queryset(Order.filter(user_id=user_id))
